@@ -137,6 +137,7 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="idt.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="physmem\physmem.cpp" />
     <ClCompile Include="safety_net.cpp" />

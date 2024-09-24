@@ -18,8 +18,8 @@ namespace safety_net {
 		constexpr segment_selector constructed_cpl0_cs = { 0, 0, 1 };
 		constexpr segment_selector constructed_cpl0_ss = { 0, 0, 2 };
 		
-		constexpr segment_selector constructed_cpl3_cs = { 3, 0, 3 };
-		constexpr segment_selector constructed_cpl3_ss = { 3, 0, 4 };
+		constexpr segment_selector constructed_cpl3_ss = { 3, 0, 3 };
+		constexpr segment_selector constructed_cpl3_cs = { 3, 0, 4 };
 
 		constexpr segment_selector constructed_tr = { 0, 0, 5 }; // Takes up 2 slots
 
@@ -119,6 +119,8 @@ namespace safety_net {
 		}
 
 		void log_constructed_gdt_descriptors(void) {
+			log_info("CONSTRUCTED");
+
 			// Log Kernel Mode Code Segment (KM CS)
 			log_segment_descriptor_32(&my_gdt[constructed_cpl0_cs.index], "Kernel Mode Code Segment (KM CS)");
 
@@ -134,6 +136,25 @@ namespace safety_net {
 			// Log Task Register (TR)
 			segment_descriptor_64* tss_descriptor = (segment_descriptor_64*)&my_gdt[constructed_tr.index];
 			log_segment_descriptor_64(tss_descriptor, "Task Register (TR)");
+
+
+			log_info("WINDOWS");
+
+			segment_descriptor_register_64 win_gdtr;
+			_sgdt(&win_gdtr);
+			segment_descriptor_32* win_gdt = (segment_descriptor_32*)win_gdtr.base_address;
+			uint64_t win_star = __readmsr(IA32_STAR);
+			segment_selector win_um_cs;
+			segment_selector win_um_ss;
+			win_um_cs.flags = (uint16_t)(((win_star >> 48) + 16) | 3);
+			win_um_ss.flags = (uint16_t)(((win_star >> 48) + 8) | 3);
+
+			// Log User Mode Code Segment (UM CS)
+			log_segment_descriptor_32(&win_gdt[win_um_cs.index], "User Mode Code Segment (UM CS)");
+
+			// Log User Mode Stack Segment (UM SS)
+			log_segment_descriptor_32(&win_gdt[win_um_ss.index], "User Mode Stack Segment (UM SS)");
+			
 		}
 
 		/*
@@ -186,7 +207,7 @@ namespace safety_net {
 			segment_descriptor_32* cpl_0_cs_descriptor = &my_gdt[constructed_cpl0_cs.index];
 			memset(cpl_0_cs_descriptor, 0, sizeof(segment_descriptor_32));
 			cpl_0_cs_descriptor->present = 1;
-			cpl_0_cs_descriptor->type = SEGMENT_DESCRIPTOR_TYPE_CODE_EXECUTE_READ;
+			cpl_0_cs_descriptor->type = SEGMENT_DESCRIPTOR_TYPE_CODE_EXECUTE_READ_ACCESSED;
 			cpl_0_cs_descriptor->descriptor_type = SEGMENT_DESCRIPTOR_TYPE_CODE_OR_DATA;
 			cpl_0_cs_descriptor->descriptor_privilege_level = 0;
 			cpl_0_cs_descriptor->long_mode = 1;
@@ -196,7 +217,7 @@ namespace safety_net {
 			segment_descriptor_32* cpl_0_ss_descriptor = &my_gdt[constructed_cpl0_ss.index];
 			memset(cpl_0_ss_descriptor, 0, sizeof(segment_descriptor_32));
 			cpl_0_ss_descriptor->present = 1;
-			cpl_0_ss_descriptor->type = SEGMENT_DESCRIPTOR_TYPE_DATA_READ_WRITE;
+			cpl_0_ss_descriptor->type = SEGMENT_DESCRIPTOR_TYPE_DATA_READ_WRITE_ACCESSED;
 			cpl_0_ss_descriptor->descriptor_type = SEGMENT_DESCRIPTOR_TYPE_CODE_OR_DATA;
 			cpl_0_ss_descriptor->descriptor_privilege_level = 0;
 			cpl_0_ss_descriptor->default_big = 1;
@@ -206,7 +227,7 @@ namespace safety_net {
 			segment_descriptor_32* cpl_3_cs_descriptor = &my_gdt[constructed_cpl3_cs.index];
 			memset(cpl_3_cs_descriptor, 0, sizeof(segment_descriptor_32));
 			cpl_3_cs_descriptor->present = 1;
-			cpl_3_cs_descriptor->type = SEGMENT_DESCRIPTOR_TYPE_CODE_EXECUTE_READ;
+			cpl_3_cs_descriptor->type = SEGMENT_DESCRIPTOR_TYPE_CODE_EXECUTE_READ_ACCESSED;
 			cpl_3_cs_descriptor->descriptor_type = SEGMENT_DESCRIPTOR_TYPE_CODE_OR_DATA;
 			cpl_3_cs_descriptor->descriptor_privilege_level = 3;
 			cpl_3_cs_descriptor->long_mode = 1;
@@ -215,10 +236,13 @@ namespace safety_net {
 			segment_descriptor_32* cpl_3_ss_descriptor = &my_gdt[constructed_cpl3_ss.index];
 			memset(cpl_3_ss_descriptor, 0, sizeof(segment_descriptor_32));
 			cpl_3_ss_descriptor->present = 1;
-			cpl_3_ss_descriptor->type = SEGMENT_DESCRIPTOR_TYPE_DATA_READ_WRITE;
+			cpl_3_ss_descriptor->type = SEGMENT_DESCRIPTOR_TYPE_DATA_READ_WRITE_ACCESSED;
 			cpl_3_ss_descriptor->descriptor_type = SEGMENT_DESCRIPTOR_TYPE_CODE_OR_DATA;
 			cpl_3_ss_descriptor->descriptor_privilege_level = 3;
+			cpl_3_ss_descriptor->granularity = 1;
 			cpl_3_ss_descriptor->default_big = 1;
+			cpl_3_ss_descriptor->segment_limit_low = 0xFFFF; // Lower 16 bits of the segment limit.
+			cpl_3_ss_descriptor->segment_limit_high = 0xF;   // Upper 4 bits of the segment limit.
 
 			// Task State Segment
 			segment_descriptor_64* tss_descriptor = reinterpret_cast<segment_descriptor_64*>(&my_gdt[constructed_tr.index]);
@@ -287,14 +311,21 @@ namespace safety_net {
 		}
 
 		idt_regs_ecode_t* get_interrupt_record(uint32_t interrupt_idx) {
-			if (!idt_inited || interrupt_idx >= 100)
+			if (!idt_inited || interrupt_idx >= 1000)
 				return 0;
 
 			return &context_storage[interrupt_idx];
 		}
 
+		idt_regs_ecode_t* get_core_last_interrupt_record(void) {
+			if (!idt_inited || total_interrupts >= 1000 || !total_interrupts)
+				return 0;
+
+			return &context_storage[total_interrupts - 1];
+		}
+
 		void safe_interrupt_record(idt_regs_ecode_t* record) {
-			if (!idt_inited || total_interrupts >= 100)
+			if (!idt_inited || total_interrupts >= 1000)
 				return;
 
 			memcpy(&context_storage[total_interrupts], record, sizeof(idt_regs_ecode_t));
@@ -476,7 +507,7 @@ namespace safety_net {
 
 			create_idt(my_idt);
 
-			context_storage = (idt_regs_ecode_t*)MmAllocateContiguousMemory(100 * sizeof(idt_regs_ecode_t), max_addr);
+			context_storage = (idt_regs_ecode_t*)MmAllocateContiguousMemory(1000 * sizeof(idt_regs_ecode_t), max_addr);
 			if (!context_storage)
 				return false;
 			memset(context_storage, 0, 100 * sizeof(idt_regs_ecode_t));
@@ -489,6 +520,7 @@ namespace safety_net {
 
 	namespace cpl {
 		bool cpl_switching_inited = false;
+		bool currently_in_cpl_3 = false;
 
 		// Runtime data
 		// IA32_STAR: Contains info about cs and ss for um and km
@@ -521,7 +553,7 @@ namespace safety_net {
 			__writemsr(IA32_FMASK, constructed_fmask);
 
 			__try {
-				asm_switch_to_cpl_3(); // Note: From now on you can execute all restricted instructions (e.g. wrmsr)
+				asm_switch_segments(gdt::constructed_cpl3_cs.flags, gdt::constructed_cpl3_ss.flags); // Note: From now on you can not execute all restricted instructions (e.g. wrmsr)
 			}
 			__except (EXCEPTION_EXECUTE_HANDLER) {
 				// All is left to do here is to pray
@@ -530,6 +562,8 @@ namespace safety_net {
 				__writemsr(IA32_FMASK, original_fmask);
 				return false; 
 			}
+
+			currently_in_cpl_3 = true;
 
 			return true;
 		}
@@ -544,11 +578,18 @@ namespace safety_net {
 				We can't do shit here as we do not have access to privileged instrucitons (e.g. wrmsr)
 			*/
 
+			if (!currently_in_cpl_3) {	// Here for testing
+				__writemsr(IA32_STAR, constructed_star);
+				__writemsr(IA32_LSTAR, constructed_lstar);
+				__writemsr(IA32_FMASK, constructed_fmask);
+			}
+
 			__try {
 				asm_switch_to_cpl_0(); // Note: From now on you can execute all privileged instructions (e.g. wrmsr)
 			}
 			__except (EXCEPTION_EXECUTE_HANDLER) {
 				// All is left to do here is to pray
+				currently_in_cpl_3 = false;
 				__writemsr(IA32_STAR, original_star);
 				__writemsr(IA32_LSTAR, original_lstar);
 				__writemsr(IA32_FMASK, original_fmask);
@@ -558,6 +599,8 @@ namespace safety_net {
 			__writemsr(IA32_STAR, original_star);
 			__writemsr(IA32_LSTAR, original_lstar);
 			__writemsr(IA32_FMASK, original_fmask);
+
+			currently_in_cpl_3 = false;
 
 			return true;
 		}
@@ -577,8 +620,8 @@ namespace safety_net {
 
 			ia32_star_register star;
 			star.flags = 0;
-			star.kernel_cs_index = gdt::constructed_cpl0_cs.flags;
-			star.user_cs_index = gdt::constructed_cpl3_cs.flags;
+			star.kernel_cs_selector = gdt::constructed_cpl0_cs.flags;
+			star.user_cs_selector = gdt::constructed_cpl3_cs.flags - 16; // Honestly fuck you to whoever wrote that +16 for sysret behaviour
 			constructed_star = star.flags;
 
 			constructed_lstar = (uint64_t)asm_syscall_handler;
@@ -586,15 +629,6 @@ namespace safety_net {
 			constructed_fmask = 0;
 			
 			cpl_switching_inited = true;
-
-			log_info("Kernel");
-			log_info("CS %x SS %x", (uint16_t)((constructed_star >> 32) & ~3), (uint16_t)(((constructed_star >> 32) & ~3) + 8));
-			log_info("CS %x SS %x", gdt::constructed_cpl0_cs.flags, gdt::constructed_cpl0_ss.flags);
-			
-			log_info("UM");
-			log_info("CS %x SS %x", (uint16_t)(((constructed_star >> 48) << 3) | 3),
-				(uint16_t)(((constructed_star >> 48) << 3) + 8 | 3));
-			log_info("CS %x SS %x", gdt::constructed_cpl3_cs.flags, gdt::constructed_cpl3_ss.flags);
 
 			return true;
 		}

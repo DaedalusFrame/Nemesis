@@ -14,36 +14,20 @@ void execute_detections(uint64_t driver_base, uint64_t driver_size) {
 
 	log_info("Safety net inited\n");
 
+	// Setup the driver for supervisor access (yes, some detections switch into cpl = 3...)
 	safety_net_t storage;
 	if (!safety_net::start_safety_net(storage))
 		return;
-
-	/*
-	__try {
-		__debugbreak();
+	if (!physmem::paging_manipulation::prepare_driver_for_supervisor_access((void*)driver_base, driver_size, __readcr3())) {
+		safety_net::stop_safety_net(storage);
+		log_error("Failed to setup driver for supervisor access");
+		return;
 	}
-	__except (EXCEPTION_EXECUTE_HANDLER) {
-
-	}
-	*/
-
-	cr4 curr_cr4;
-	cr4 new_cr4;
-	curr_cr4.flags = __readcr4();
-	new_cr4.flags = curr_cr4.flags;
-
-	new_cr4.smap_enable = 0;
-	new_cr4.smep_enable = 0;
-	__writecr4(new_cr4.flags);
-
-	//safety_net::cpl::switch_to_cpl_3();
-	//safety_net::cpl::switch_to_cpl_0();
-
-	__writecr4(curr_cr4.flags);
-
 	safety_net::stop_safety_net(storage);
 
-	safety_net::idt::log_all_interrupts();
+	log_info("IDT:");
+	idt::execute_idt_detections();
+	log_new_line();
 }
 
 NTSTATUS driver_entry(uint64_t driver_base, uint64_t driver_size) {

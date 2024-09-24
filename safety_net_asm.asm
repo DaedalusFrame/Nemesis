@@ -223,31 +223,42 @@ asm_syscall_handler proc
     jmp rcx ; Basically just ignores the syscall and jumps to the next instruction
 asm_syscall_handler endp
 
-asm_switch_to_cpl_3 proc
-    push rcx
-    push r11
+asm_switch_segments proc
+    push rbx
 
-    lea rcx, [continue_execution] ; RIP stored in RCX
+    ; SS
+    movzx rbx, dx ; 16 byte argument passed
+    push rbx
 
-    pushfq                        ; RFLAGS stored in R11
-    pop r11
+    ; Rsp
+    mov rbx, rsp
+    add rbx, 8
+    push rbx
+    
+    ; Rflags
+    pushfq
 
-    sysret 
+    ; CS
+    movzx rbx, cx ; 16 byte argument passed
+    push rbx
 
-continue_execution:
-    syscall
+    ; Rip
+    lea rbx, [continue]
+    push rbx
+   
+    iretq
 
-    pop r11
-    pop rcx
+continue:
 
+    pop rbx
     ret
-asm_switch_to_cpl_3 endp
+asm_switch_segments endp
 
 asm_switch_to_cpl_0 proc
     push rcx
     push r11
 
-    syscall ; Will be a jump to rcx basically
+    syscall ; Will be a jump to the next instruction basically
 
     pop r11
     pop rcx

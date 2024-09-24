@@ -60,7 +60,7 @@ extern "C" void seh_handler_ecode(idt_regs_ecode_t* regs);
 
 // Cpl switching
 extern "C" void asm_syscall_handler(void);
-extern "C" void asm_switch_to_cpl_3(void);
+extern "C" void asm_switch_segments(uint16_t cs, uint16_t ss);
 extern "C" void asm_switch_to_cpl_0(void);
 
 /*
@@ -101,6 +101,7 @@ namespace safety_net {
 	};
 
 	namespace idt {
+		idt_regs_ecode_t* get_core_last_interrupt_record(void);
 		idt_regs_ecode_t* get_interrupt_record(uint32_t interrupt_idx);
 		uint64_t get_interrupt_count(void);
 		void log_all_interrupts();

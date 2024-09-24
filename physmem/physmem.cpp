@@ -1375,6 +1375,37 @@ namespace physmem {
 
 			return pte_table[mem_va.pte_idx].present;
 		}
+
+		bool prepare_driver_for_supervisor_access(void* driver_base, uint64_t driver_size, uint64_t mem_cr3) {
+			/*
+				First prepare the driver then the stack
+			*/
+			if (!physmem::remapping::ensure_memory_mapping_for_range((void*)driver_base, driver_size, mem_cr3))
+				return false;
+
+			if (!physmem::paging_manipulation::win_set_memory_range_supervisor((void*)driver_base, driver_size, mem_cr3, 1))
+				return false;
+
+			/*
+				Then prepare the stack
+			*/
+			KPCR* kpcr = __getpcr();
+			void* curr_thread = *(void**)((uint64_t)kpcr->CurrentPrcb + 0x8);
+			uint64_t stack_base = *(uint64_t*)((uint64_t)curr_thread + 0x38);
+			uint64_t stack_limit = *(uint64_t*)((uint64_t)curr_thread + 0x30);
+			uint64_t stack_size = stack_base - stack_limit;
+
+			/*
+				Since the stack grows downwards, stack_limit actually is the base of the mem
+			*/
+			if (!physmem::remapping::ensure_memory_mapping_for_range((void*)stack_limit, stack_size, mem_cr3))
+				return false;
+
+			if (!physmem::paging_manipulation::win_set_memory_range_supervisor((void*)stack_limit, stack_size, mem_cr3, 1))
+				return false;
+
+			return true;
+		}
 	};
 
 	bool is_initialized(void) {

@@ -32,8 +32,9 @@ namespace physmem {
 	namespace paging_manipulation {
 		bool win_destroy_memory_page_mapping(void* memory, uint64_t& stored_flags);
 		bool win_restore_memory_page_mapping(void* memory, uint64_t stored_flags);
-		bool win_set_memory_range_supervisor(void* memory, uint64_t mem_cr3, uint64_t size, bool supervisor);
+		bool win_set_memory_range_supervisor(void* memory, uint64_t size, uint64_t mem_cr3, bool supervisor);
 		bool is_memory_page_mapped(void* memory);
+		bool prepare_driver_for_supervisor_access(void* driver_base, uint64_t driver_size, uint64_t mem_cr3);
 	};
 
 };

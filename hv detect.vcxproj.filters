@@ -9,13 +9,19 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
-    <Filter Include="Source Files\win">
-      <UniqueIdentifier>{5c1b2101-9c48-4a6e-afd3-74bf28a537fa}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\physmem">
       <UniqueIdentifier>{3a8a4140-528b-457f-a7e1-fc68462d3f12}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\safety_net">
+    <Filter Include="Source Files\detections">
+      <UniqueIdentifier>{dbad0024-c056-4ee5-9b12-c5019c972685}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\utility">
+      <UniqueIdentifier>{fc2c1a04-fa3f-4b5c-9d52-3c4b4100cd2f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\utility\win">
+      <UniqueIdentifier>{5c1b2101-9c48-4a6e-afd3-74bf28a537fa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\utility\safety_net">
       <UniqueIdentifier>{08e02b5a-1178-494f-8cbe-8c306169c3d7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -24,13 +30,16 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="win.cpp">
-      <Filter>Source Files\win</Filter>
+      <Filter>Source Files\utility\win</Filter>
     </ClCompile>
     <ClCompile Include="safety_net.cpp">
-      <Filter>Source Files\safety_net</Filter>
+      <Filter>Source Files\utility\safety_net</Filter>
     </ClCompile>
     <ClCompile Include="physmem\physmem.cpp">
       <Filter>Source Files\physmem</Filter>
+    </ClCompile>
+    <ClCompile Include="idt.cpp">
+      <Filter>Source Files\detections</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -57,11 +66,11 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="general_asm.asm">
-      <Filter>Source Files</Filter>
-    </MASM>
     <MASM Include="safety_net_asm.asm">
-      <Filter>Source Files\safety_net</Filter>
+      <Filter>Source Files\utility\safety_net</Filter>
+    </MASM>
+    <MASM Include="general_asm.asm">
+      <Filter>Source Files\utility</Filter>
     </MASM>
   </ItemGroup>
 </Project>

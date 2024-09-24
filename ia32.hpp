@@ -14757,7 +14757,7 @@ typedef union {
          * The CS selector is derived as ((kernel_cs_index << 3) | 0).
          * The SS selector is derived as ((kernel_cs_index << 3) + 8).
          */
-        uint64_t kernel_cs_index : 16;
+        uint64_t kernel_cs_selector : 16;
 
         /**
          * @brief User Mode CS Selector Index <b>(R/W)</b>
@@ -14766,7 +14766,7 @@ typedef union {
          * The CS selector is derived as (((user_cs_index + 16) << 3) | 3).
          * The SS selector is derived as (((user_cs_index + 16) << 3) + 8 | 3).
          */
-        uint64_t user_cs_index : 16;
+        uint64_t user_cs_selector : 16;
     };
 
     /**
