@@ -34,6 +34,11 @@ __read_rsp proc
     ret
 __read_rsp endp
 
+__read_r15 proc
+    mov rax, r15
+    ret
+__read_r15 endp
+
 __write_tr proc
     ltr cx
     ret

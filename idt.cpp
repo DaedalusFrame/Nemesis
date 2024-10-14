@@ -12,11 +12,10 @@ namespace idt {
         detection_2 -> #PF due to invalid memory operand
         detection_3 -> SIDT with operand not mapped in cr3 but in TLB
         detection_4 -> Timing check (500 tsc ticks acceptable)
-        detection_5 -> Compatibility mode idtr storing (TO DO!)
+        detection_5 -> Compatibility mode idtr storing
         detection_6 -> Non canonical address passed as memory operand
         detection_7 -> Non canonical address passed as memory operand in SS segment -> #SS
-        detection_8 -> Executing sidt with cpl = 3 but with cr4.umip = 0 && eflags.ac = 0
-        detection_9 -> Executing sidt with cpl = 3 but with cr4.umip = 1 -> #GP(0) should be caused
+        detection_8 -> Executing sidt with cpl = 3 but with cr4.umip = 1 -> #GP(0) should be caused
     */
     namespace storing {
         bool detection_1(void) {
@@ -32,11 +31,8 @@ namespace idt {
                 if (safety_net::idt::get_core_last_interrupt_record()->exception_vector != invalid_opcode)
                     hypervisor_detected = true;
             }
-            if (hypervisor_detected) {
-                return true;
-            }
 
-            return false;
+            return hypervisor_detected;
         }
 
         bool detection_2(void) {
@@ -52,11 +48,8 @@ namespace idt {
                 if (safety_net::idt::get_core_last_interrupt_record()->exception_vector != page_fault)
                     hypervisor_detected = true;
             }
-            if (hypervisor_detected) {
-                return true;
-            }
 
-            return false;
+            return hypervisor_detected;
         }
 
         bool detection_3(void) {
@@ -88,9 +81,7 @@ namespace idt {
                 hypervisor_detected = true; // Should not happen on bare metal
             }
 
-            if (!physmem::paging_manipulation::win_restore_memory_page_mapping(allocated_memory_page, stored_flags)) {
-                return hypervisor_detected;
-            }
+            physmem::paging_manipulation::win_restore_memory_page_mapping(allocated_memory_page, stored_flags);
 
             return hypervisor_detected;
         }
@@ -125,7 +116,36 @@ namespace idt {
         }
 
         bool detection_5(void) {
-            // Compatibility mode IDTR storing (TO DO)
+            // Compatibility mode IDTR storing
+            static uint8_t compatibility_shellcode[] = {
+               0xB8, 0x00, 0x00, 0x00, 0x00,                         // mov eax, 0x00000000 (placeholder for data page address)
+               0x0F, 0x01, 0x18,                                     // sidt [eax]
+
+               0xB8, 0x31, 0x73, 0x00, 0x00,                         // mov eax, 0x00007331
+               0xCC,                                                 // int 3 <- Switches back to long mode
+            };
+            *(uint32_t*)(compatibility_shellcode + 1) = safety_net::execution_mode::get_compatibility_data_page_address();
+
+            void* data_page = safety_net::execution_mode::get_compatibility_data_page(); // This is where the idtr will be stored
+            memset(data_page, 0, 0x1000);
+
+            // Bytes 6-10 of original_data should come back unmodified unless we find a hypervisor
+            uint8_t original_data[10];
+            memcpy(original_data, data_page, sizeof(original_data));
+
+            __try {
+                safety_net::execution_mode::execute_32_bit_shellcode(compatibility_shellcode, sizeof(compatibility_shellcode));
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+
+            }
+
+            uint8_t stored_data[10];
+            memcpy(stored_data, data_page, sizeof(stored_data));
+
+            if (memcmp(original_data + 6, stored_data + 6, 4) != 0) {
+                return true;
+            }
 
             return false;
         }
@@ -143,11 +163,8 @@ namespace idt {
                 if (safety_net::idt::get_core_last_interrupt_record()->exception_vector != general_protection)
                     hypervisor_detected = true;
             }
-            if (hypervisor_detected) {
-                return true;
-            }
 
-            return false;
+            return hypervisor_detected;
         }
 
         bool detection_7(void) {
@@ -163,11 +180,8 @@ namespace idt {
                 if (safety_net::idt::get_core_last_interrupt_record()->exception_vector != stack_segment_fault)
                     hypervisor_detected = true;
             }
-            if (hypervisor_detected) {
-                return true;
-            }
 
-            return false;
+            return hypervisor_detected;
         }
 
         bool detection_8(void) {
@@ -276,79 +290,23 @@ namespace idt {
             if (!safety_net::start_safety_net(storage))
                 return;
 
-            bool detection_1_result = detection_1();
-            bool detection_2_result = detection_2();
-            bool detection_3_result = detection_3();
-            bool detection_4_result = detection_4();
-            bool detection_5_result = detection_5();
-            bool detection_6_result = detection_6();
-            bool detection_7_result = detection_7();
-            bool detection_8_result = detection_8();
-            bool detection_9_result = detection_9();
+            const int num_detections = 9;
+            bool detection_results[num_detections];
+            bool (*detections[])(void) = { detection_1, detection_2, detection_3, detection_4, detection_5, detection_6, detection_7, detection_8, detection_9 };
+
+            for (int i = 0; i < num_detections; ++i) {
+                detection_results[i] = detections[i]();
+            }
 
             safety_net::stop_safety_net(storage);
 
-            if (detection_1_result) {
-                log_error_indent(2, "Failed detection 1");
-            }
-            else {
-                log_success_indent(2, "Passed detection 1");
-            }
-
-            if (detection_2_result) {
-                log_error_indent(2, "Failed detection 2");
-            }
-            else {
-                log_success_indent(2, "Passed detection 2");
-            }
-
-            if (detection_3_result) {
-                log_error_indent(2, "Failed detection 3");
-            }
-            else {
-                log_success_indent(2, "Passed detection 3");
-            }
-
-            if (detection_4_result) {
-                log_error_indent(2, "Failed detection 4");
-            }
-            else {
-                log_success_indent(2, "Passed detection 4");
-            }
-
-            if (detection_5_result) {
-                log_error_indent(2, "Failed detection 5");
-            }
-            else {
-                log_success_indent(2, "Passed detection 5");
-            }
-
-            if (detection_6_result) {
-                log_error_indent(2, "Failed detection 6");
-            }
-            else {
-                log_success_indent(2, "Passed detection 6");
-            }
-
-            if (detection_7_result) {
-                log_error_indent(2, "Failed detection 7");
-            }
-            else {
-                log_success_indent(2, "Passed detection 7");
-            }
-
-            if (detection_8_result) {
-                log_error_indent(2, "Failed detection 8");
-            }
-            else {
-                log_success_indent(2, "Passed detection 8");
-            }
-
-            if (detection_9_result) {
-                log_error_indent(2, "Failed detection 9");
-            }
-            else {
-                log_success_indent(2, "Passed detection 9");
+            for (int i = 0; i < num_detections; ++i) {
+                if (detection_results[i]) {
+                    log_error_indent(2, "Failed detection %d", i + 1);
+                }
+                else {
+                    log_success_indent(2, "Passed detection %d", i + 1);
+                }
             }
         }
     };
@@ -412,13 +370,11 @@ namespace idt {
             memcpy(allocated_memory_page, &idtr, sizeof(idtr));
 
             uint64_t stored_flags;
-            if (!physmem::paging_manipulation::win_destroy_memory_page_mapping(allocated_memory_page, stored_flags)) {
+            if (!physmem::paging_manipulation::win_destroy_memory_page_mapping(allocated_memory_page, stored_flags))
                 return false;
-            }
 
-            if (physmem::paging_manipulation::is_memory_page_mapped(allocated_memory_page)) {
+            if (physmem::paging_manipulation::is_memory_page_mapped(allocated_memory_page))
                 return false;
-            }
 
             // The instruction should go through as the idtr page is still in the tlb (but not mapped in cr3!)
             bool hypervisor_detected = false;
@@ -466,11 +422,6 @@ namespace idt {
         }
 
         bool detection_5(void) {
-            // Compatibility mode IDTR storing (TO DO)
-            return false;
-        }
-
-        bool detection_6(void) {
             bool hypervisor_detected = false;
 
             // Non-canonical address should cause a general protection fault
@@ -486,7 +437,7 @@ namespace idt {
             return hypervisor_detected;
         }
 
-        bool detection_7(void) {
+        bool detection_6(void) {
             bool hypervisor_detected = false;
 
             // Non-canonical address in SS segment should cause a stack segment fault
@@ -502,7 +453,7 @@ namespace idt {
             return hypervisor_detected;
         }
 
-        bool detection_8(void) {
+        bool detection_7(void) {
             segment_descriptor_register_64 idtr;
             __sidt(&idtr);
 
@@ -548,84 +499,30 @@ namespace idt {
             if (!safety_net::start_safety_net(storage))
                 return;
 
-            bool detection_1_result = detection_1();
-            bool detection_2_result = detection_2();
-            bool detection_3_result = detection_3();
-            bool detection_4_result = detection_4();
-            bool detection_5_result = detection_5();
-            bool detection_6_result = detection_6();
-            bool detection_7_result = detection_7();
-            bool detection_8_result = detection_8();
+            const int num_detections = 7;
+            bool detection_results[num_detections];
+            bool (*detections[])(void) = { detection_1, detection_2, detection_3, detection_4, detection_5, detection_6, detection_7 };
+
+            for (int i = 0; i < num_detections; ++i) {
+                detection_results[i] = detections[i]();
+            }
 
             safety_net::stop_safety_net(storage);
 
-            if (detection_1_result) {
-                log_error_indent(2, "Failed detection 1");
-            }
-            else {
-                log_success_indent(2, "Passed detection 1");
-            }
-
-            if (detection_2_result) {
-                log_error_indent(2, "Failed detection 2");
-            }
-            else {
-                log_success_indent(2, "Passed detection 2");
-            }
-
-            if (detection_3_result) {
-                log_error_indent(2, "Failed detection 3");
-            }
-            else {
-                log_success_indent(2, "Passed detection 3");
-            }
-
-            if (detection_4_result) {
-                log_error_indent(2, "Failed detection 4");
-            }
-            else {
-                log_success_indent(2, "Passed detection 4");
-            }
-
-            if (detection_5_result) {
-                log_error_indent(2, "Failed detection 5");
-            }
-            else {
-                log_success_indent(2, "Passed detection 5");
-            }
-
-            if (detection_6_result) {
-                log_error_indent(2, "Failed detection 6");
-            }
-            else {
-                log_success_indent(2, "Passed detection 6");
-            }
-
-            if (detection_7_result) {
-                log_error_indent(2, "Failed detection 7");
-            }
-            else {
-                log_success_indent(2, "Passed detection 7");
-            }
-
-            if (detection_8_result) {
-                log_error_indent(2, "Failed detection 8");
-            }
-            else {
-                log_success_indent(2, "Passed detection 8");
+            for (int i = 0; i < num_detections; ++i) {
+                if (detection_results[i]) {
+                    log_error_indent(2, "Failed detection %d", i + 1);
+                }
+                else {
+                    log_success_indent(2, "Passed detection %d", i + 1);
+                }
             }
         }
     };
 
     void execute_idt_detections(void) {
         memset(allocated_memory_page, 0, 0x1000);
-
-        safety_net_t storage;
-        if (!safety_net::start_safety_net(storage))
-            return;
-
-        safety_net::stop_safety_net(storage);
-
+        
         log_new_line();
         log_info_indent(1, "SIDT");
         storing::execute_detections();
@@ -634,16 +531,5 @@ namespace idt {
         log_info_indent(1, "LIDT");
         loading::execute_detections();
         log_new_line();
-
-
-        if (!safety_net::start_safety_net(storage))
-            return;
-
-        if (!physmem::paging_manipulation::win_set_memory_range_supervisor(allocated_memory_page, 0x1000, __readcr3(), 0)) {
-            safety_net::stop_safety_net(storage);
-            return;
-        }
-
-        safety_net::stop_safety_net(storage);
     }
 };

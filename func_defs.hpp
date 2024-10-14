@@ -15,6 +15,7 @@ extern "C" segment_selector __read_tr(void);
 extern "C" segment_selector __read_cs(void);
 extern "C" segment_selector __read_ss(void);
 extern "C" uint64_t __read_rsp(void);
+extern "C" uint64_t __read_r15(void);
 extern "C" void __write_tr(uint16_t selector);
 extern "C" void __write_cs(uint16_t selector);
 extern "C" void __write_ss(uint16_t selector);
@@ -63,6 +64,9 @@ extern "C" void seh_handler_ecode(idt_regs_ecode_t* regs);
 extern "C" void asm_syscall_handler(void);
 extern "C" void asm_switch_segments(uint16_t cs, uint16_t ss);
 extern "C" void asm_switch_to_cpl_0(void);
+
+// Execution mode switching
+extern "C" void asm_execute_compatibility_mode_code(void);
 
 /*
 	High level detections
@@ -124,5 +128,14 @@ namespace safety_net {
 			In here we need to ensure that we restore all polluted MSR's
 		*/
 		bool switch_to_cpl_0(void);
+	};
+
+	namespace execution_mode {
+		bool handle_mode_switch(idt_regs_ecode_t* record);
+
+		uint32_t get_compatibility_data_page_address(void);
+		void* get_compatibility_data_page(void);
+
+		bool execute_32_bit_shellcode(void* shellcode, uint64_t shellcode_size);
 	};
 };

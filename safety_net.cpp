@@ -11,19 +11,23 @@ namespace safety_net {
 	uint64_t g_image_base;
 	uint64_t g_image_size;
 
+
 	namespace gdt {
 		// Compile time variables
-		constexpr segment_selector zero_descriptor_selector = { 0, 0, 0 };
+		extern "C" constexpr segment_selector zero_descriptor_selector = {0, 0, 0};
 
-		constexpr segment_selector constructed_cpl0_cs = { 0, 0, 1 };
-		constexpr segment_selector constructed_cpl0_ss = { 0, 0, 2 };
+		extern "C" constexpr segment_selector constructed_cpl0_cs = { 0, 0, 1 };
+		extern "C" constexpr segment_selector constructed_cpl0_ss = { 0, 0, 2 };
 		
-		constexpr segment_selector constructed_cpl3_ss = { 3, 0, 3 };
-		constexpr segment_selector constructed_cpl3_cs = { 3, 0, 4 };
+		extern "C" constexpr segment_selector constructed_cpl3_ss = { 3, 0, 3 };
+		extern "C" constexpr segment_selector constructed_cpl3_cs = { 3, 0, 4 };
 
-		constexpr segment_selector constructed_tr = { 0, 0, 5 }; // Takes up 2 slots
+		extern "C" constexpr segment_selector constructed_tr = { 0, 0, 5 }; // Takes up 2 slots
 
-		constexpr uint16_t constructed_gdt_size = 7;
+		extern "C" constexpr segment_selector compatibility_constructed_cpl0_cs = { 0, 0, 7 };
+		extern "C" constexpr segment_selector compatibility_constructed_cpl0_ss = { 0, 0, 8 };
+
+		constexpr uint16_t constructed_gdt_size = 9;
 
 		// Runtime data
 		bool gdt_inited = false;
@@ -193,7 +197,7 @@ namespace safety_net {
 			segment_descriptor_32* zero_descriptor = &my_gdt[zero_descriptor_selector.index];
 			memset(zero_descriptor, 0, sizeof(segment_descriptor_32));
 
-			// Kernel Code Segment
+			// Kernel Code Segment (64-bit)
 			segment_descriptor_32* cpl_0_cs_descriptor = &my_gdt[constructed_cpl0_cs.index];
 			memset(cpl_0_cs_descriptor, 0, sizeof(segment_descriptor_32));
 			cpl_0_cs_descriptor->present = 1;
@@ -203,7 +207,7 @@ namespace safety_net {
 			cpl_0_cs_descriptor->long_mode = 1;
 
 
-			// Kernel Data Segment
+			// Kernel Data Segment (64-bit)
 			segment_descriptor_32* cpl_0_ss_descriptor = &my_gdt[constructed_cpl0_ss.index];
 			memset(cpl_0_ss_descriptor, 0, sizeof(segment_descriptor_32));
 			cpl_0_ss_descriptor->present = 1;
@@ -213,7 +217,7 @@ namespace safety_net {
 			cpl_0_ss_descriptor->default_big = 1;
 
 
-			// User Code Segment
+			// User Code Segment (64-bit)
 			segment_descriptor_32* cpl_3_cs_descriptor = &my_gdt[constructed_cpl3_cs.index];
 			memset(cpl_3_cs_descriptor, 0, sizeof(segment_descriptor_32));
 			cpl_3_cs_descriptor->present = 1;
@@ -222,7 +226,7 @@ namespace safety_net {
 			cpl_3_cs_descriptor->descriptor_privilege_level = 3;
 			cpl_3_cs_descriptor->long_mode = 1;
 
-			// User Data Segment
+			// User Data Segment (64-bit)
 			segment_descriptor_32* cpl_3_ss_descriptor = &my_gdt[constructed_cpl3_ss.index];
 			memset(cpl_3_ss_descriptor, 0, sizeof(segment_descriptor_32));
 			cpl_3_ss_descriptor->present = 1;
@@ -233,6 +237,32 @@ namespace safety_net {
 			cpl_3_ss_descriptor->default_big = 1;
 			cpl_3_ss_descriptor->segment_limit_low = 0xFFFF; // Lower 16 bits of the segment limit.
 			cpl_3_ss_descriptor->segment_limit_high = 0xF;   // Upper 4 bits of the segment limit.
+
+			// Compatibility Mode Kernel Code Segment (32-bit)
+			segment_descriptor_32* comp_cpl_0_cs_descriptor = &my_gdt[compatibility_constructed_cpl0_cs.index];
+			memset(comp_cpl_0_cs_descriptor, 0, sizeof(segment_descriptor_32));
+			comp_cpl_0_cs_descriptor->present = 1;
+			comp_cpl_0_cs_descriptor->type = SEGMENT_DESCRIPTOR_TYPE_CODE_EXECUTE_READ_ACCESSED;
+			comp_cpl_0_cs_descriptor->descriptor_type = SEGMENT_DESCRIPTOR_TYPE_CODE_OR_DATA;
+			comp_cpl_0_cs_descriptor->descriptor_privilege_level = 0;
+			comp_cpl_0_cs_descriptor->default_big = 1; // 32-bit operation size
+			comp_cpl_0_cs_descriptor->granularity = 1; // Get the max limits
+			comp_cpl_0_cs_descriptor->segment_limit_low = 0xFFFF; // Lower 16 bits of the segment limit.
+			comp_cpl_0_cs_descriptor->segment_limit_high = 0xF;   // Upper 4 bits of the segment limit.
+			comp_cpl_0_cs_descriptor->long_mode = 0;
+
+			// Compatibility Mode Kernel Data Segment (32-bit)
+			segment_descriptor_32* comp_cpl_0_ss_descriptor = &my_gdt[compatibility_constructed_cpl0_ss.index];
+			memset(comp_cpl_0_ss_descriptor, 0, sizeof(segment_descriptor_32));
+			comp_cpl_0_ss_descriptor->present = 1;
+			comp_cpl_0_ss_descriptor->type = SEGMENT_DESCRIPTOR_TYPE_DATA_READ_WRITE_ACCESSED;
+			comp_cpl_0_ss_descriptor->descriptor_type = SEGMENT_DESCRIPTOR_TYPE_CODE_OR_DATA;
+			comp_cpl_0_ss_descriptor->descriptor_privilege_level = 0;
+			comp_cpl_0_ss_descriptor->default_big = 1; // 32-bit operation size
+			comp_cpl_0_ss_descriptor->granularity = 1; // Get the max limits
+			comp_cpl_0_ss_descriptor->segment_limit_low = 0xFFFF; // Lower 16 bits of the segment limit.
+			comp_cpl_0_ss_descriptor->segment_limit_high = 0xF;   // Upper 4 bits of the segment limit.
+			comp_cpl_0_ss_descriptor->long_mode = 0;
 
 			// Task State Segment
 			segment_descriptor_64* tss_descriptor = reinterpret_cast<segment_descriptor_64*>(&my_gdt[constructed_tr.index]);
@@ -384,6 +414,13 @@ namespace safety_net {
 			// Safe data about the interrupt for various purposes
 			safe_interrupt_record(record);
 			increase_interrupt_counter();
+
+			// We use this as a mode switch from long to compatibility mode
+			if (record->exception_vector == breakpoint) {
+				if (execution_mode::handle_mode_switch(record)) {
+					return;
+				}
+			}
 
 			// stack_segment_fault faults require the real rsp in rax (;
 			// Look into detect_asm.asm:__ss_fault_sidt for more details
@@ -634,14 +671,147 @@ namespace safety_net {
 		}
 	};
 
+	namespace execution_mode {
+		bool execution_mode_changing_allocated = false;
+		bool execution_mode_changing_remapped = false;
+
+		void* compatibility_stack = 0;
+		void* compatibility_data_page = 0;
+		void* compatibility_execution_page = 0;
+
+		uint64_t backed_cs;
+		uint64_t backed_ss;
+		uint64_t backed_rsp;
+		uint64_t backed_rip;
+
+#define EXECUTION_PAGE_32_BIT_ADDRESS 0x0001000
+#define COMPATIBILITY_STACK_32_BIT_ADDRESS 0x00002000 
+#define DATA_PAGE_32_BIT_ADDRESS 0x00003000 
+
+		/*
+			If the shellcode does not int 3 to go back it's your own fault (;
+			Note: The user is self responsible for setting up the data page
+		*/
+		bool execute_32_bit_shellcode(void* shellcode, uint64_t shellcode_size) {
+			if (execution_mode_changing_allocated && !execution_mode_changing_remapped) {
+				if (!physmem::remapping::overwrite_virtual_address_mapping((void*)EXECUTION_PAGE_32_BIT_ADDRESS, compatibility_execution_page, physmem::util::get_constructed_cr3().flags, physmem::util::get_system_cr3().flags))
+					return false;
+
+				if (!physmem::paging_manipulation::win_set_memory_range_supervisor((void*)EXECUTION_PAGE_32_BIT_ADDRESS, 0x1000, physmem::util::get_constructed_cr3().flags, 1))
+					return false;
+
+				for (uint64_t i = 0; i < KERNEL_STACK_SIZE; i += PAGE_SIZE) {
+					if (!physmem::remapping::overwrite_virtual_address_mapping((void*)(COMPATIBILITY_STACK_32_BIT_ADDRESS + i), (void*)((uint64_t)compatibility_stack + i), physmem::util::get_constructed_cr3().flags, physmem::util::get_system_cr3().flags))
+						return false;
+				}
+
+				if (!physmem::paging_manipulation::win_set_memory_range_supervisor((void*)COMPATIBILITY_STACK_32_BIT_ADDRESS, KERNEL_STACK_SIZE, physmem::util::get_constructed_cr3().flags, 1))
+					return false;
+
+				if (!physmem::remapping::overwrite_virtual_address_mapping((void*)DATA_PAGE_32_BIT_ADDRESS, compatibility_data_page, physmem::util::get_constructed_cr3().flags, physmem::util::get_system_cr3().flags))
+					return false;
+
+				if (!physmem::paging_manipulation::win_set_memory_range_supervisor((void*)DATA_PAGE_32_BIT_ADDRESS, 0x1000, physmem::util::get_constructed_cr3().flags, 1))
+					return false;
+
+				execution_mode_changing_remapped = true;
+			}
+
+			// Clear everything out before usage
+			memset(compatibility_stack, 0, KERNEL_STACK_SIZE);
+			memset(compatibility_execution_page, 0, 0x1000);
+			memcpy((void*)compatibility_execution_page, shellcode, shellcode_size);
+
+			// Switches into compatibiltiy mode and executes code in 32 bit addressable ranges
+			asm_execute_compatibility_mode_code();
+
+			return true;
+		}
+
+		void* allocate_32bit_accessible_page(uint64_t size) {
+			PHYSICAL_ADDRESS max_addr;
+
+			max_addr.QuadPart = 0xFFFFFFFF;  // 32-bit addressable range (limit to first 4GB)
+			void* mem = MmAllocateContiguousMemory(size, max_addr);
+			if (!mem)
+				return 0;
+
+			// Zero out the allocated memory for safety
+			memset(mem, 0, size);
+			return mem;
+		}
+
+		/*
+			Relies on atomicity
+		*/
+		bool handle_mode_switch(idt_regs_ecode_t* record) {
+			if (!record)
+				return false;
+
+			uint64_t eax = record->rax & 0xFFFFFFFF;
+			if (eax == 0x1337) {
+
+				backed_cs = record->cs_selector;
+				backed_ss = record->ss_selector;
+
+				backed_rsp = record->rsp;
+				backed_rip = record->rip;
+
+				record->rsp = (uint64_t)COMPATIBILITY_STACK_32_BIT_ADDRESS + KERNEL_STACK_SIZE; // Do not forget that the stack grows downwards
+				record->rip = (uint64_t)EXECUTION_PAGE_32_BIT_ADDRESS;
+
+				record->cs_selector = gdt::compatibility_constructed_cpl0_cs.flags;
+				record->ss_selector = gdt::compatibility_constructed_cpl0_ss.flags;
+
+				return true;
+			}
+			if (eax == 0x7331) {
+				record->rsp = backed_rsp;
+				record->rip = backed_rip;
+
+				record->cs_selector = backed_cs;
+				record->ss_selector = backed_ss;
+
+				return true;
+			}
+	
+			return false;
+		}
+
+		uint32_t get_compatibility_data_page_address(void) {
+			return (uint32_t)DATA_PAGE_32_BIT_ADDRESS;
+		}
+
+		void* get_compatibility_data_page(void) {
+			return compatibility_data_page;
+		}
+
+		bool init_execution_mode_changer(void) {
+
+			compatibility_stack = allocate_32bit_accessible_page(KERNEL_STACK_SIZE);
+			if (!compatibility_stack)
+				return false;
+			
+			compatibility_execution_page = allocate_32bit_accessible_page(0x1000);
+			if (!compatibility_execution_page)
+				return false;
+
+			compatibility_data_page = allocate_32bit_accessible_page(0x1000);
+			if (!compatibility_data_page)
+				return false;
+
+			execution_mode_changing_allocated = true;
+			return true;
+		}
+	};
+
 	/*
 		Exposed API's
 	*/
 
 	bool is_safety_net_active() {
-		if (!inited) {
+		if (!inited)
 			return false;
-		}
 
 		// Check GDTR
 		segment_descriptor_register_64 current_gdtr;
@@ -695,13 +865,28 @@ namespace safety_net {
 		if (!cpl::init_cpl_switcher())
 			return false;
 
+		if (!execution_mode::init_execution_mode_changer())
+			return false;
+
 		inited = true;
 
 		return true;
 	}
 
 	void free_safety_net(void) {
+		// Gdt
+		MmFreeContiguousMemory(gdt::my_gdt);
+		MmFreeContiguousMemory(gdt::my_tss);
+		MmFreeContiguousMemory(gdt::interrupt_stack);
+
+		// Idt
 		MmFreeContiguousMemory(idt::my_idt);
+		MmFreeContiguousMemory(idt::context_storage);
+
+		// Compatibility mode execution
+		MmFreeContiguousMemory(execution_mode::compatibility_stack);
+		MmFreeContiguousMemory(execution_mode::compatibility_execution_page);
+		MmFreeContiguousMemory(execution_mode::compatibility_data_page);
 	}
 
 	/*

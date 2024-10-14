@@ -743,8 +743,13 @@ namespace physmem {
 			memcpy(my_pdpt_table, mapped_pdpt_table, sizeof(pdpte_64) * 512);
 			memcpy(&my_pml4_table[mem_va.pml4e_idx], &mapped_pml4_table[mem_va.pml4e_idx], sizeof(pml4e_64));
 
+			my_pde_table[mem_va.pde_idx].present = 1;
 			my_pde_table[mem_va.pde_idx].page_frame_number = pt_phys >> 12;
+
+			my_pdpt_table[mem_va.pdpte_idx].present = 1;
 			my_pdpt_table[mem_va.pdpte_idx].page_frame_number = pd_phys >> 12;
+
+			my_pml4_table[mem_va.pml4e_idx].present = 1;
 			my_pml4_table[mem_va.pml4e_idx].page_frame_number = pdpt_phys >> 12;
 
 			// Create a new remapping entry

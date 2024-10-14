@@ -266,4 +266,16 @@ asm_switch_to_cpl_0 proc
     ret
 asm_switch_to_cpl_0 endp
 
+; Mode switching
+asm_execute_compatibility_mode_code proc
+
+    ; Switches into compatibility mode
+    mov rax, 01337h
+    int 3
+
+    ; The shellcode is responsible for executing the second int 3
+
+    ret
+asm_execute_compatibility_mode_code endp
+
 end

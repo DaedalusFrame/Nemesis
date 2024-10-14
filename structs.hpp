@@ -108,6 +108,7 @@ typedef struct {
 
 	uint64_t exception_vector;
 	uint64_t error_code;
+
 	uint64_t rip;
 	uint64_t cs_selector;
 	rflags rflags;
