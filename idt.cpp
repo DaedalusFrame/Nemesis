@@ -15,7 +15,8 @@ namespace idt {
         detection_5 -> Compatibility mode idtr storing
         detection_6 -> Non canonical address passed as memory operand
         detection_7 -> Non canonical address passed as memory operand in SS segment -> #SS
-        detection_8 -> Executing sidt with cpl = 3 but with cr4.umip = 1 -> #GP(0) should be caused
+        detection_8 -> Executing sidt with cpl = 3 but with cr4.umip = 0 -> Should go through
+        detection_9 -> Executing sidt with cpl = 3 but with cr4.umip = 1 -> #GP(0) should be caused
     */
     namespace storing {
         bool detection_1(void) {
@@ -318,9 +319,9 @@ namespace idt {
         detection_2 -> #PF due to invalid memory operand
         detection_3 -> LIDT with operand not mapped in cr3 but in TLB
         detection_4 -> Timing check (500 tsc ticks acceptable)
-        detection_5 -> Compatibility mode idtr storing (TO DO!)
-        detection_6 -> Non canonical address passed as memory operand
-        detection_7 -> Non canonical address passed as memory operand in SS segment -> #SS
+        detection_5 -> Non canonical address passed as memory operand
+        detection_6 -> Non canonical address passed as memory operand in SS segment -> #SS
+        detection_7 -> Executing lidt with cr4.umip = 0 -> Should cause #GP(0) as lidt is not affected by the state of cr4.umip
     */
     namespace loading {
 
