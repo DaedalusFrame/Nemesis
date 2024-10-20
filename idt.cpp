@@ -4,6 +4,9 @@
 
 namespace idt {
     char allocated_memory_page[0x1000];
+    segment_descriptor_register_32 comp_idt;
+    segment_descriptor_register_64 actual_idt;
+
 
     /*
         List of checks:
@@ -117,34 +120,38 @@ namespace idt {
         }
 
         bool detection_5(void) {
-            // Compatibility mode IDTR storing
             static uint8_t compatibility_shellcode[] = {
-               0xB8, 0x00, 0x00, 0x00, 0x00,                         // mov eax, 0x00000000 (placeholder for data page address)
-               0x0F, 0x01, 0x18,                                     // sidt [eax]
-
-               0xB8, 0x31, 0x73, 0x00, 0x00,                         // mov eax, 0x00007331
-               0xCC,                                                 // int 3 <- Switches back to long mode
+                0xB8, 0x00, 0x00, 0x00, 0x00,        // mov eax, 0x00000000
+                0x0F, 0x01, 0x08,                    // sidt [eax]
+                0xC3                                 // ret
             };
+
             *(uint32_t*)(compatibility_shellcode + 1) = safety_net::execution_mode::get_compatibility_data_page_address();
 
             void* data_page = safety_net::execution_mode::get_compatibility_data_page(); // This is where the idtr will be stored
             memset(data_page, 0, 0x1000);
 
-            // Bytes 6-10 of original_data should come back unmodified unless we find a hypervisor
-            uint8_t original_data[10];
-            memcpy(original_data, data_page, sizeof(original_data));
-
+            bool result = false;
             __try {
-                safety_net::execution_mode::execute_32_bit_shellcode(compatibility_shellcode, sizeof(compatibility_shellcode));
+                result = safety_net::execution_mode::execute_32_bit_shellcode(compatibility_shellcode, sizeof(compatibility_shellcode));
             }
             __except (EXCEPTION_EXECUTE_HANDLER) {
-
+                result = true; // Something went wrong in mode switching emulation of the hypervisor
             }
 
-            uint8_t stored_data[10];
-            memcpy(stored_data, data_page, sizeof(stored_data));
+            if (!result)
+                return true;
 
-            if (memcmp(original_data + 6, stored_data + 6, 4) != 0) {
+            segment_descriptor_register_64 curr_idt;
+            __sidt(&curr_idt);
+
+            comp_idt = *(segment_descriptor_register_32*)data_page;
+            actual_idt = curr_idt;
+
+
+            // If these two match it means that a shitty hypervisor is present
+            // that stored 10 bytes instead of 6;
+            if (memcmp((void*)&curr_idt, data_page, sizeof(segment_descriptor_register_64)) == 0) {
                 return true;
             }
 

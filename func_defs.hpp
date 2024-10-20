@@ -6,35 +6,72 @@
 	Assembly
 */
 
-// Intrinsics
-extern "C" void _cli(void);
-extern "C" void _sti(void);
-extern "C" void _sgdt(void* gdtr);
-extern "C" void _lgdt(void* gdtr);
+// ------------------------------------------------------------
+// General Purpose Register Manipulation
+// ------------------------------------------------------------
+extern "C" uint64_t __read_rsp(void);
+extern "C" uint64_t __read_r15(void);
+
+// ------------------------------------------------------------
+// Segment Register Reading/Manipulation
+// ------------------------------------------------------------
 extern "C" segment_selector __read_tr(void);
 extern "C" segment_selector __read_cs(void);
 extern "C" segment_selector __read_ss(void);
-extern "C" uint64_t __read_rsp(void);
-extern "C" uint64_t __read_r15(void);
+extern "C" segment_selector __read_ds(void);
+extern "C" segment_selector __read_es(void);
+extern "C" segment_selector __read_fs(void);
+extern "C" segment_selector __read_gs(void);
+
 extern "C" void __write_tr(uint16_t selector);
 extern "C" void __write_cs(uint16_t selector);
 extern "C" void __write_ss(uint16_t selector);
+extern "C" void __write_ds(uint16_t selector);
+extern "C" void __write_es(uint16_t selector);
+extern "C" void __write_fs(uint16_t selector);
+extern "C" void __write_gs(uint16_t selector);
+
+// ------------------------------------------------------------
+// CLI/STI Operations
+// ------------------------------------------------------------
+extern "C" void _cli(void);
+extern "C" void _sti(void);
+
+// ------------------------------------------------------------
+// GDT Operations (SGDT, LGDT)
+// ------------------------------------------------------------
+extern "C" void _sgdt(void* gdtr);
+extern "C" void _lgdt(void* gdtr);
+
+// ------------------------------------------------------------
+// Special Fault Operations
+// ------------------------------------------------------------
 extern "C" void __cause_ss(void);
 
-// Util
+// ------------------------------------------------------------
+// Utility Functions
+// ------------------------------------------------------------
 extern "C" uint32_t get_proc_number(void);
 extern "C" void asm_switch_cpl(uint64_t new_cpl);
 
-// Detection specific assembly routines
+// ------------------------------------------------------------
+// SIDT Operations (Fault Handling and Locking)
+// ------------------------------------------------------------
 extern "C" void __lock_sidt(void* idtr_storage);
 extern "C" void __ss_fault_sidt(void);
 extern "C" void __gp_fault_sidt(void);
 
+// ------------------------------------------------------------
+// LIDT Operations (Fault Handling and Locking)
+// ------------------------------------------------------------
 extern "C" void __lock_lidt(void* idtr_storage);
 extern "C" void __ss_fault_lidt(void);
 extern "C" void __gp_fault_lidt(void);
 
-// Idt handlers
+
+// ------------------------------------------------------------
+// IDT HANDLERS
+// ------------------------------------------------------------
 extern "C" void asm_de_handler();
 extern "C" void asm_db_handler();
 extern "C" void asm_nmi_handler();
@@ -55,15 +92,14 @@ extern "C" void asm_mc_handler();
 extern "C" void asm_xm_handler();
 extern "C" void asm_ve_handler();
 extern "C" void asm_cp_handler();
-
 extern "C" void seh_handler_ecode(idt_regs_ecode_t* regs);
 
-// Cpl switching
+// ------------------------------------------------------------
+// CPL CHANGING / EXECUTION MODE CHANGING
+// ------------------------------------------------------------
 extern "C" void asm_syscall_handler(void);
 extern "C" void asm_switch_segments(uint16_t cs, uint16_t ss);
 extern "C" void asm_switch_to_cpl_0(void);
-
-// Execution mode switching
 extern "C" void asm_execute_compatibility_mode_code(void);
 
 /*

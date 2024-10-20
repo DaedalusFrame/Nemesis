@@ -27,7 +27,9 @@ namespace safety_net {
 		extern "C" constexpr segment_selector compatibility_constructed_cpl0_cs = { 0, 0, 7 };
 		extern "C" constexpr segment_selector compatibility_constructed_cpl0_ss = { 0, 0, 8 };
 
-		constexpr uint16_t constructed_gdt_size = 9;
+		extern "C" constexpr segment_selector constructed_ds_es_fs_gs = { 0, 0, 9 };
+
+		constexpr uint16_t constructed_gdt_size = 10;
 
 		// Runtime data
 		bool gdt_inited = false;
@@ -101,7 +103,7 @@ namespace safety_net {
 			log_info("  Granularity (G flag): 0x%X", descriptor->granularity);
 			log_info("  Default/Big (D/B flag): 0x%X", descriptor->default_big);
 			log_info("  Long Mode (L flag): 0x%X", descriptor->long_mode);
-			log_info("  System: 0x%X", descriptor->system);
+			log_info("  System: 0x%X\n", descriptor->system);
 		}
 
 		void log_segment_selector(segment_selector* selector, const char* selector_name) {
@@ -122,42 +124,46 @@ namespace safety_net {
 		}
 
 		void log_constructed_gdt_descriptors(void) {
-			log_info("CONSTRUCTED");
-
-			// Log Kernel Mode Code Segment (KM CS)
-			log_segment_descriptor_32(&my_gdt[constructed_cpl0_cs.index], "Kernel Mode Code Segment (KM CS)");
-
-			// Log Kernel Mode Stack Segment (KM SS)
-			log_segment_descriptor_32(&my_gdt[constructed_cpl0_ss.index], "Kernel Mode Stack Segment (KM SS)");
-
-			// Log User Mode Code Segment (UM CS)
-			log_segment_descriptor_32(&my_gdt[constructed_cpl3_cs.index], "User Mode Code Segment (UM CS)");
-
-			// Log User Mode Stack Segment (UM SS)
-			log_segment_descriptor_32(&my_gdt[constructed_cpl3_ss.index], "User Mode Stack Segment (UM SS)");
-
-			// Log Task Register (TR)
-			segment_descriptor_64* tss_descriptor = (segment_descriptor_64*)&my_gdt[constructed_tr.index];
-			log_segment_descriptor_64(tss_descriptor, "Task Register (TR)");
-
-
-			log_info("WINDOWS");
-
+			// Retrieve the GDTR register
 			segment_descriptor_register_64 win_gdtr;
 			_sgdt(&win_gdtr);
+
+			// Get the base address of the GDT
 			segment_descriptor_32* win_gdt = (segment_descriptor_32*)win_gdtr.base_address;
-			uint64_t win_star = __readmsr(IA32_STAR);
-			segment_selector win_um_cs;
-			segment_selector win_um_ss;
-			win_um_cs.flags = (uint16_t)(((win_star >> 48) + 16) | 3);
-			win_um_ss.flags = (uint16_t)(((win_star >> 48) + 8) | 3);
 
-			// Log User Mode Code Segment (UM CS)
-			log_segment_descriptor_32(&win_gdt[win_um_cs.index], "User Mode Code Segment (UM CS)");
+			// Define segment selectors
+			segment_selector cs, ds, ss, es, fs, gs, tr;
 
-			// Log User Mode Stack Segment (UM SS)
-			log_segment_descriptor_32(&win_gdt[win_um_ss.index], "User Mode Stack Segment (UM SS)");
-			
+			// Read the segment selectors
+			cs = __read_cs();
+			ds = __read_ds();
+			ss = __read_ss();
+			es = __read_es();
+			fs = __read_fs();
+			gs = __read_gs();
+			tr = __read_tr();
+
+			// Log segment selector values and their corresponding GDT entries
+			log_info("CS: 0x%04x", *(uint16_t*)&cs);
+			log_segment_descriptor_32(&win_gdt[cs.index], "CS");
+
+			log_info("DS: 0x%04x", *(uint16_t*)&ds);
+			log_segment_descriptor_32(&win_gdt[ds.index], "DS");
+
+			log_info("SS: 0x%04x", *(uint16_t*)&ss);
+			log_segment_descriptor_32(&win_gdt[ss.index], "SS");
+
+			log_info("ES: 0x%04x", *(uint16_t*)&es);
+			log_segment_descriptor_32(&win_gdt[es.index], "ES");
+
+			log_info("FS: 0x%04x", *(uint16_t*)&fs);
+			log_segment_descriptor_32(&win_gdt[fs.index], "FS");
+
+			log_info("GS: 0x%04x", *(uint16_t*)&gs);
+			log_segment_descriptor_32(&win_gdt[gs.index], "GS");
+
+			log_info("TR: 0x%04x", *(uint16_t*)&tr);
+			log_segment_descriptor_64((segment_descriptor_64*)(&win_gdt[tr.index]), "TSS");
 		}
 
 		/*
@@ -262,7 +268,6 @@ namespace safety_net {
 			comp_cpl_0_ss_descriptor->granularity = 1; // Get the max limits
 			comp_cpl_0_ss_descriptor->segment_limit_low = 0xFFFF; // Lower 16 bits of the segment limit.
 			comp_cpl_0_ss_descriptor->segment_limit_high = 0xF;   // Upper 4 bits of the segment limit.
-			comp_cpl_0_ss_descriptor->long_mode = 0;
 
 			// Task State Segment
 			segment_descriptor_64* tss_descriptor = reinterpret_cast<segment_descriptor_64*>(&my_gdt[constructed_tr.index]);
@@ -277,6 +282,15 @@ namespace safety_net {
 			tss_descriptor->base_address_middle = (tss_base >> 16) & 0xFF;
 			tss_descriptor->base_address_high = (tss_base >> 24) & 0xFF;
 			tss_descriptor->base_address_upper = (tss_base >> 32) & 0xFFFFFFFF;
+
+			// DS / ES / GS
+			segment_descriptor_32* ds_es_fs_gs_descriptor = &my_gdt[constructed_ds_es_fs_gs.index];
+			memset(ds_es_fs_gs_descriptor, 0, sizeof(segment_descriptor_32));
+			ds_es_fs_gs_descriptor->present = 1;
+			ds_es_fs_gs_descriptor->type = SEGMENT_DESCRIPTOR_TYPE_DATA_READ_WRITE_ACCESSED;
+			ds_es_fs_gs_descriptor->descriptor_type = SEGMENT_DESCRIPTOR_TYPE_CODE_OR_DATA;
+			ds_es_fs_gs_descriptor->descriptor_privilege_level = 0;
+			ds_es_fs_gs_descriptor->default_big = 1;
 
 			my_gdtr.base_address = (uint64_t)my_gdt;
 			my_gdtr.limit = (constructed_gdt_size * sizeof(segment_descriptor_32));
@@ -416,11 +430,8 @@ namespace safety_net {
 			increase_interrupt_counter();
 
 			// We use this as a mode switch from long to compatibility mode
-			if (record->exception_vector == breakpoint) {
-				if (execution_mode::handle_mode_switch(record)) {
-					return;
-				}
-			}
+			if (execution_mode::handle_mode_switch(record))
+				return;
 
 			// stack_segment_fault faults require the real rsp in rax (;
 			// Look into detect_asm.asm:__ss_fault_sidt for more details
@@ -429,9 +440,8 @@ namespace safety_net {
 			}
 
 			// Just mock nmis 
-			if (record->exception_vector == nmi) {
+			if (record->exception_vector == nmi)
 				return;
-			}
 
 			IMAGE_DOS_HEADER* dos_header = (IMAGE_DOS_HEADER*)g_image_base;
 			IMAGE_NT_HEADERS64* nt_headers = (IMAGE_NT_HEADERS64*)(g_image_base + dos_header->e_lfanew);
@@ -679,14 +689,13 @@ namespace safety_net {
 		void* compatibility_data_page = 0;
 		void* compatibility_execution_page = 0;
 
-		uint64_t backed_cs;
-		uint64_t backed_ss;
 		uint64_t backed_rsp;
 		uint64_t backed_rip;
 
 #define EXECUTION_PAGE_32_BIT_ADDRESS 0x0001000
-#define COMPATIBILITY_STACK_32_BIT_ADDRESS 0x00002000 
-#define DATA_PAGE_32_BIT_ADDRESS 0x00003000 
+#define EXECUTION_PAGE_32_BIT_USER_SHELLCODE_START EXECUTION_PAGE_32_BIT_ADDRESS + 0x100
+#define DATA_PAGE_32_BIT_ADDRESS 0x00002000 
+#define COMPATIBILITY_STACK_32_BIT_ADDRESS 0x00003000 
 
 		/*
 			If the shellcode does not int 3 to go back it's your own fault (;
@@ -700,18 +709,18 @@ namespace safety_net {
 				if (!physmem::paging_manipulation::win_set_memory_range_supervisor((void*)EXECUTION_PAGE_32_BIT_ADDRESS, 0x1000, physmem::util::get_constructed_cr3().flags, 1))
 					return false;
 
-				for (uint64_t i = 0; i < KERNEL_STACK_SIZE; i += PAGE_SIZE) {
+				if (!physmem::remapping::overwrite_virtual_address_mapping((void*)DATA_PAGE_32_BIT_ADDRESS, compatibility_data_page, physmem::util::get_constructed_cr3().flags, physmem::util::get_system_cr3().flags))
+					return false;
+
+				if (!physmem::paging_manipulation::win_set_memory_range_supervisor((void*)DATA_PAGE_32_BIT_ADDRESS, 0x1000, physmem::util::get_constructed_cr3().flags, 1))
+					return false;
+
+				for (uint64_t i = 0; i <= KERNEL_STACK_SIZE; i += PAGE_SIZE) {
 					if (!physmem::remapping::overwrite_virtual_address_mapping((void*)(COMPATIBILITY_STACK_32_BIT_ADDRESS + i), (void*)((uint64_t)compatibility_stack + i), physmem::util::get_constructed_cr3().flags, physmem::util::get_system_cr3().flags))
 						return false;
 				}
 
 				if (!physmem::paging_manipulation::win_set_memory_range_supervisor((void*)COMPATIBILITY_STACK_32_BIT_ADDRESS, KERNEL_STACK_SIZE, physmem::util::get_constructed_cr3().flags, 1))
-					return false;
-
-				if (!physmem::remapping::overwrite_virtual_address_mapping((void*)DATA_PAGE_32_BIT_ADDRESS, compatibility_data_page, physmem::util::get_constructed_cr3().flags, physmem::util::get_system_cr3().flags))
-					return false;
-
-				if (!physmem::paging_manipulation::win_set_memory_range_supervisor((void*)DATA_PAGE_32_BIT_ADDRESS, 0x1000, physmem::util::get_constructed_cr3().flags, 1))
 					return false;
 
 				execution_mode_changing_remapped = true;
@@ -720,7 +729,33 @@ namespace safety_net {
 			// Clear everything out before usage
 			memset(compatibility_stack, 0, KERNEL_STACK_SIZE);
 			memset(compatibility_execution_page, 0, 0x1000);
-			memcpy((void*)compatibility_execution_page, shellcode, shellcode_size);
+
+			/*
+				Prologue is there to switch seg regs and call the actual function / shellcode
+			*/
+			static uint8_t compatibility_prologue[] = {
+				0x8C, 0xD0,                          // mov ax, ss
+				0x8E, 0xD8,                          // mov ds, ax
+				0x8E, 0xC0,                          // mov es, ax
+				0x8E, 0xE0,                          // mov fs, ax
+				0x8E, 0xE8,                          // mov gs, ax
+
+				0xB8, 0x00, 0x00, 0x00, 0x00,      // mov eax, 0x00000000
+				0xFF, 0xD0,                        // call eax
+			};
+			*(uint32_t*)(compatibility_prologue + 11) = (uint32_t)EXECUTION_PAGE_32_BIT_USER_SHELLCODE_START;
+
+			/*
+				The epilogue just switches back to long mode
+			*/
+			static uint8_t compatibility_epilogue[] = {
+				0xB8, 0x31, 0x73, 0x00, 0x00,       // mov eax, 0x00007331
+				0xCC                                // int 3 (Will switch back to long mode via idt handler)
+			};
+
+			memcpy((void*)(EXECUTION_PAGE_32_BIT_USER_SHELLCODE_START), shellcode, shellcode_size);
+			memcpy((void*)compatibility_execution_page, compatibility_prologue, sizeof(compatibility_prologue));
+			memcpy((void*)((uint64_t)compatibility_execution_page + sizeof(compatibility_prologue)), compatibility_epilogue, sizeof(compatibility_epilogue));
 
 			// Switches into compatibiltiy mode and executes code in 32 bit addressable ranges
 			asm_execute_compatibility_mode_code();
@@ -749,10 +784,7 @@ namespace safety_net {
 				return false;
 
 			uint64_t eax = record->rax & 0xFFFFFFFF;
-			if (eax == 0x1337) {
-
-				backed_cs = record->cs_selector;
-				backed_ss = record->ss_selector;
+			if (eax == 0x1337 && record->exception_vector == breakpoint) {
 
 				backed_rsp = record->rsp;
 				backed_rip = record->rip;
@@ -765,16 +797,28 @@ namespace safety_net {
 
 				return true;
 			}
-			if (eax == 0x7331) {
+			else if (eax == 0x7331 && record->exception_vector == breakpoint) {
 				record->rsp = backed_rsp;
 				record->rip = backed_rip;
 
-				record->cs_selector = backed_cs;
-				record->ss_selector = backed_ss;
+				record->cs_selector = gdt::constructed_cpl0_cs.flags;
+				record->ss_selector = gdt::constructed_cpl0_ss.flags;
 
 				return true;
 			}
 	
+			// Primitive exception handling here; We just return back to long mode and restore everything if we hit an exception here
+			if (record->cs_selector == gdt::compatibility_constructed_cpl0_cs.flags &&
+				record->ss_selector == gdt::compatibility_constructed_cpl0_ss.flags) {
+				record->rsp = backed_rsp;
+				record->rip = backed_rip;
+
+				record->cs_selector = gdt::constructed_cpl0_cs.flags;
+				record->ss_selector = gdt::constructed_cpl0_ss.flags;
+
+				return true;
+			}
+
 			return false;
 		}
 
@@ -950,9 +994,6 @@ namespace safety_net {
 		return true;
 	}
 
-	/*
-		Note: Has to be called from cpl = 0
-	*/
 	void stop_safety_net(safety_net_t& info_storage) {
 		_lgdt(&info_storage.safed_gdtr);
 
