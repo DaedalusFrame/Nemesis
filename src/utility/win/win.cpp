@@ -1,5 +1,5 @@
-#include "includes.h"
-#include "func_defs.hpp"
+#include "../includes/includes.h"
+#include "../includes/func_defs.hpp"
 
 namespace win {
     uint64_t win_get_virtual_address(uint64_t physical_address) {

@@ -138,27 +138,31 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="idt.cpp" />
+    <ClCompile Include="detections\idt.cpp" />
     <ClCompile Include="main.cpp" />
+<<<<<<< HEAD:hv detect.vcxproj
     <ClCompile Include="physmem\physmem.cpp" />
     <ClCompile Include="safety_net.cpp" />
     <ClCompile Include="ve.cpp" />
     <ClCompile Include="win.cpp" />
+=======
+    <ClCompile Include="utility\physmem\physmem.cpp" />
+    <ClCompile Include="utility\safety_net\safety_net.cpp" />
+    <ClCompile Include="utility\win\win.cpp" />
+>>>>>>> 75c3a9d6ef0fd63377d88ac09ddafb4db995f950:src/hv_detect.vcxproj
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="func_defs.hpp" />
-    <ClInclude Include="ia32.hpp" />
-    <ClInclude Include="includes.h" />
-    <ClInclude Include="physmem\page_table_helpers.hpp" />
-    <ClInclude Include="physmem\physmem.hpp" />
-    <ClInclude Include="physmem\physmem_structs.hpp" />
-    <ClInclude Include="structs.hpp" />
+    <ClInclude Include="includes\func_defs.hpp" />
+    <ClInclude Include="includes\ia32.hpp" />
+    <ClInclude Include="includes\includes.h" />
+    <ClInclude Include="includes\structs.hpp" />
+    <ClInclude Include="utility\physmem\page_table_helpers.hpp" />
+    <ClInclude Include="utility\physmem\physmem.hpp" />
+    <ClInclude Include="utility\physmem\physmem_structs.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="general_asm.asm">
-      <FileType>Document</FileType>
-    </MASM>
-    <MASM Include="safety_net_asm.asm" />
+    <MASM Include="utility\general_asm.asm" />
+    <MASM Include="utility\safety_net\safety_net_asm.asm" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

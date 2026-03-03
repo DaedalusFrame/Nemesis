@@ -1,6 +1,6 @@
-#include "includes.h"
-#include "func_defs.hpp"
-#include "physmem/physmem.hpp"
+#include "includes/includes.h"
+#include "includes/func_defs.hpp"
+#include "utility/physmem/physmem.hpp"
 
 void execute_detections(uint64_t driver_base, uint64_t driver_size) {
 	UNREFERENCED_PARAMETER(driver_base);

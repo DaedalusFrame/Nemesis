@@ -1,6 +1,6 @@
-#include "../structs.hpp"
-#include "../includes.h"
-#include "../func_defs.hpp"
+#include "../includes/structs.hpp"
+#include "../includes/includes.h"
+#include "../includes/func_defs.hpp"
 
 #include "physmem_structs.hpp"
 #include "page_table_helpers.hpp"

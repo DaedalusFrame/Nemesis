@@ -1,7 +1,7 @@
 #pragma once
-#include "../structs.hpp"
-#include "../includes.h"
-#include "../func_defs.hpp"
+#include "../includes/structs.hpp"
+#include "../includes/includes.h"
+#include "../includes/func_defs.hpp"
 
 typedef struct {
     uint32_t eax;

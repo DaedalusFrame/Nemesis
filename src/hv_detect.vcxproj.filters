@@ -5,10 +5,6 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
-    </Filter>
     <Filter Include="Source Files\detections">
       <UniqueIdentifier>{dbad0024-c056-4ee5-9b12-c5019c972685}</UniqueIdentifier>
     </Filter>
@@ -24,21 +20,24 @@
     <Filter Include="Source Files\utility\physmem">
       <UniqueIdentifier>{3a8a4140-528b-457f-a7e1-fc68462d3f12}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\includes">
+      <UniqueIdentifier>{6ad3315e-0c5d-458e-b6af-a5ece93a9878}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="win.cpp">
-      <Filter>Source Files\utility\win</Filter>
-    </ClCompile>
-    <ClCompile Include="safety_net.cpp">
-      <Filter>Source Files\utility\safety_net</Filter>
-    </ClCompile>
-    <ClCompile Include="physmem\physmem.cpp">
+    <ClCompile Include="utility\physmem\physmem.cpp">
       <Filter>Source Files\utility\physmem</Filter>
     </ClCompile>
-    <ClCompile Include="idt.cpp">
+    <ClCompile Include="utility\safety_net\safety_net.cpp">
+      <Filter>Source Files\utility\safety_net</Filter>
+    </ClCompile>
+    <ClCompile Include="utility\win\win.cpp">
+      <Filter>Source Files\utility\win</Filter>
+    </ClCompile>
+    <ClCompile Include="detections\idt.cpp">
       <Filter>Source Files\detections</Filter>
     </ClCompile>
     <ClCompile Include="ve.cpp">
@@ -46,33 +45,33 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="includes.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ia32.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="func_defs.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="structs.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="physmem\page_table_helpers.hpp">
+    <ClInclude Include="utility\physmem\page_table_helpers.hpp">
       <Filter>Source Files\utility\physmem</Filter>
     </ClInclude>
-    <ClInclude Include="physmem\physmem.hpp">
+    <ClInclude Include="utility\physmem\physmem.hpp">
       <Filter>Source Files\utility\physmem</Filter>
     </ClInclude>
-    <ClInclude Include="physmem\physmem_structs.hpp">
+    <ClInclude Include="utility\physmem\physmem_structs.hpp">
       <Filter>Source Files\utility\physmem</Filter>
+    </ClInclude>
+    <ClInclude Include="includes\func_defs.hpp">
+      <Filter>Source Files\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="includes\ia32.hpp">
+      <Filter>Source Files\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="includes\includes.h">
+      <Filter>Source Files\includes</Filter>
+    </ClInclude>
+    <ClInclude Include="includes\structs.hpp">
+      <Filter>Source Files\includes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="safety_net_asm.asm">
+    <MASM Include="utility\safety_net\safety_net_asm.asm">
       <Filter>Source Files\utility\safety_net</Filter>
     </MASM>
-    <MASM Include="general_asm.asm">
+    <MASM Include="utility\general_asm.asm">
       <Filter>Source Files\utility</Filter>
     </MASM>
   </ItemGroup>
