@@ -139,17 +139,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="detections\idt.cpp" />
+    <ClCompile Include="detections\ve.cpp" />
     <ClCompile Include="main.cpp" />
-<<<<<<< HEAD:hv detect.vcxproj
-    <ClCompile Include="physmem\physmem.cpp" />
-    <ClCompile Include="safety_net.cpp" />
-    <ClCompile Include="ve.cpp" />
-    <ClCompile Include="win.cpp" />
-=======
     <ClCompile Include="utility\physmem\physmem.cpp" />
     <ClCompile Include="utility\safety_net\safety_net.cpp" />
-    <ClCompile Include="utility\win\win.cpp" />
->>>>>>> 75c3a9d6ef0fd63377d88ac09ddafb4db995f950:src/hv_detect.vcxproj
+    <ClCompile Include="win\win.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="includes\func_defs.hpp" />

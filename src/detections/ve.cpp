@@ -1,6 +1,6 @@
-#include "includes.h"
-#include "func_defs.hpp"
-#include "physmem/physmem.hpp"
+#include "../includes/includes.h"
+#include "../includes/func_defs.hpp"
+#include "../utility/physmem/physmem.hpp"
 
 namespace ve {
     uint64_t image_base = 0;
@@ -564,8 +564,8 @@ namespace ve {
             return hv_detected;
         }
         else {
-            // Can happen cause newer or older CPU generations might be out there that are not in our table so we can't assume really?
-            return true;
+            // Can happen cause we can't rly assume we don't hit a new / other CPU generation, also what about AMD but still weird?
+            return false;
         }
 
         // Unreachable
