@@ -3,11 +3,14 @@
 #include "physmem/physmem.hpp"
 
 void execute_detections(uint64_t driver_base, uint64_t driver_size) {
+	UNREFERENCED_PARAMETER(driver_base);
+	UNREFERENCED_PARAMETER(driver_size);
 	if (!physmem::init_physmem()) {
 		log_error("Failed to init physmem");
 		return;
 	}
 	
+
 	log_new_line();
 	log_info("Physmem inited");
 
@@ -35,7 +38,12 @@ void execute_detections(uint64_t driver_base, uint64_t driver_size) {
 
 	log_info("IDT:");
 	idt::execute_idt_detections();
+
+	log_info("VE:");
+	ve::execute_ve_detections();
+
 	log_new_line();
+
 }
 
 NTSTATUS driver_entry(uint64_t driver_base, uint64_t driver_size) {

@@ -41,6 +41,9 @@
     <ClCompile Include="idt.cpp">
       <Filter>Source Files\detections</Filter>
     </ClCompile>
+    <ClCompile Include="ve.cpp">
+      <Filter>Source Files\detections</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="includes.h">

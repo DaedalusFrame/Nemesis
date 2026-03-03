@@ -3164,8 +3164,15 @@ typedef struct
 #define CPUID_EDX_PCONFIG_FLAG                                       0x40000
 #define CPUID_EDX_PCONFIG_MASK                                       0x01
 #define CPUID_EDX_PCONFIG(_)                                         (((_) >> 18) & 0x01)
-            uint32_t reserved6 : 1;
-
+           
+            /**
+             * [Bit 19] Supports LBR if 1.
+             */
+            uint32_t arch_lbr : 1;
+#define CPUID_EDX_LBR_BIT                                        19
+#define CPUID_EDX_LBR_FLAG                                       0x00080000u
+#define CPUID_EDX_LBR_MASK                                       0x01
+#define CPUID_EDX_LBR(_)                                         (((_) >> 19) & 0x01)
             /**
              * [Bit 20] Supports CET indirect branch tracking features if 1. Processors that set this bit define bits 5:2 and bits
              * 63:10 of the IA32_U_CET and IA32_S_CET MSRs.

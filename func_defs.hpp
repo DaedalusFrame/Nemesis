@@ -66,6 +66,8 @@ extern "C" void asm_switch_to_cpl_0(void);
 // Execution mode switching
 extern "C" void asm_execute_compatibility_mode_code(void);
 
+extern "C" void __cause_ve(void);
+
 /*
 	High level detections
 */
@@ -80,15 +82,14 @@ namespace idt {
 	void execute_idt_detections(void);
 };
 
-namespace gdt {
-	void execute_gdt_detections(void);
-};
-
-namespace tr {
-	void execute_tr_detections(void);
+namespace ve {
+	void execute_ve_detections(void);
 };
 
 namespace safety_net {
+	inline uint64_t g_image_base = 0;
+	inline uint64_t g_image_size = 0;
+
 	bool init_safety_net(uint64_t image_base, uint64_t image_size);
 	void free_safety_net(void);
 
@@ -110,6 +111,8 @@ namespace safety_net {
 		uint64_t get_interrupt_count(void);
 		void log_all_interrupts();
 		void reset_interrupt_count(void);
+
+		void set_should_disable_lbr_in_handler(bool val);
 
 		segment_descriptor_register_64 get_constructed_idtr(void);
 	};

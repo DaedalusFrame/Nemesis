@@ -278,4 +278,8 @@ asm_execute_compatibility_mode_code proc
     ret
 asm_execute_compatibility_mode_code endp
 
+__cause_ve proc 
+    int 14h
+__cause_ve endp
+
 end

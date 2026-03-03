@@ -8,10 +8,6 @@
 namespace safety_net {
 	bool inited = false;
 
-	uint64_t g_image_base;
-	uint64_t g_image_size;
-
-
 	namespace gdt {
 		// Compile time variables
 		extern "C" constexpr segment_selector zero_descriptor_selector = {0, 0, 0};
@@ -292,8 +288,10 @@ namespace safety_net {
 		segment_descriptor_interrupt_gate_64* my_idt = 0;
 		segment_descriptor_register_64 my_idtr = { 0 };
 
-		uint64_t total_interrupts = 1;
+		uint64_t total_interrupts = 0;
 		idt_regs_ecode_t* context_storage = 0;
+
+		bool should_disable_lbr = false;
 
 		/*
 			Utility / Exposed API's
@@ -327,7 +325,7 @@ namespace safety_net {
 		}
 
 		uint64_t get_interrupt_count(void) {
-			return idt::total_interrupts;
+			return total_interrupts;
 		}
 
 		idt_regs_ecode_t* get_interrupt_record(uint32_t interrupt_idx) {
@@ -358,6 +356,10 @@ namespace safety_net {
 				return;
 
 			memcpy(&context_storage[total_interrupts], record, sizeof(idt_regs_ecode_t));
+		}
+
+		void set_should_disable_lbr_in_handler(bool val) {
+			should_disable_lbr = val;
 		}
 
 		void log_all_interrupts() {
@@ -410,6 +412,9 @@ namespace safety_net {
 
 		// Core exception handler
 		extern "C" void exception_handler(idt_regs_ecode_t* record) {
+			if (should_disable_lbr) {
+				__writemsr(IA32_DEBUGCTL, 0);
+			}
 
 			// Safe data about the interrupt for various purposes
 			safe_interrupt_record(record);
@@ -976,4 +981,4 @@ namespace safety_net {
 
 		_sti();
 	}
-}
+};
